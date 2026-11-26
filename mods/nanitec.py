@@ -23,8 +23,8 @@ What it changes:
   screenoff Stock bug: with the screen off, keys go straight to the music
             service (mod33) so next/prev work blind. After a library refresh
             the index builder (mod40) still sits where mod33 lives, and the
-            first key press after the screen times out jumped into it: crash,
-            reboot. Keys now take that path only while mod33 is in memory;
+            first held next/prev after the screen times out jumped into it:
+            crash, reboot. Keys now take that path only while mod33 is in memory;
             otherwise they're handled like any key with the screen on.
   date      The image is dated 2026-10-31 (later day than stock's 10-29; seen to
             install over 10-30 and 10-31 builds; see README.md, "Install").
