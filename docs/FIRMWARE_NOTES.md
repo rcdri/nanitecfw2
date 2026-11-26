@@ -12,10 +12,13 @@ Tools: `tools/fwre.py` (segments, disassembly, references), `fwtool.py unpack` (
   strtbl ×10, imageres ×10, unk ×10, then pad/size and the `RKnanoFW` tag.
 - The image is padded to a 1 MiB multiple and ends with an RKCRC32. `fwtool.finalize` redoes the
   size, header copy, padding and CRC.
-- Dates: the updater itself never compares dates (see below), but images dated 2026‑10‑30 and
-  2026‑10‑31 installed over stock (2026‑10‑29) while one dated 2026‑11‑01 was ignored on a real
-  player. The copy that boots is chosen by the boot loader, which lives in the boot area and is not
-  part of the image, so the exact rule is unknown. The build dates mods 10‑30 and recovery 10‑31.
+- Dates: the boot scan and the updater never compare dates (see below). On a real player:
+  - 2026‑10‑30 installed over stock (2026‑10‑29);
+  - 2026‑10‑31 installed over 10‑30, and over 10‑31 again;
+  - one image dated 2026‑11‑01 was ignored.
+
+  The boot loader lives in the boot area, not in the image, so its rule is unknown. The build dates
+  every image 2026‑10‑31.
 - Stage 3 is the code: `{base 0x03050000, count 91}`, then one 32-byte entry per segment
   `{code_va, code_pa, code_sz, data_va, data_pa, data_sz, bss_pa, bss_sz}`. 62 entries are used.
   - Segment 0 is resident (code 0x03050000+0x278f0, data 0x03004000).

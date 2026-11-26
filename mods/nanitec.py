@@ -20,16 +20,15 @@ What it changes:
             "Random Album": picks a random album and plays it in order from
             track 1 (play order normal; a shuffle play mode becomes repeat-all).
   about     About shows the software version as "2.0.0m".
-  date      The image is dated one day after stock (2026-10-30). The loader
-            boots whichever firmware copy has the newest date, so an image with
-            the stock date can be ignored on a player already running V2.0.0.
+  date      The image is dated 2026-10-31 (later day than stock's 10-29; seen to
+            install over 10-30 and 10-31 builds; see README.md, "Install").
   power     (--power, off by default) lower decode-core clocks during playback,
             let the CPU sleep between events with the screen on, poll the wheel
             every 1 ms instead of every 0.4 ms. nanitecfw marks this as not
             yet measured and not tested with hi-res (24/192) files.
 
---recovery writes the unmodified stock code with a newer date (default
-2026-10-31), so you can go back to stock after flashing a modded image.
+--recovery writes the unmodified stock code dated 2026-10-31, so you can go
+back to stock after flashing a modded image.
 
 Relocation notes (V1.7.0 -> V2.0.0):
   mod21 (main menu) moved by +0x11dc as a whole; mod00 message API +0x98
@@ -481,7 +480,7 @@ def check_power_rows(raw):
             raise SystemExit(f"clock row {i}: unexpected {r} (not stock V2.0.0)")
 
 
-def apply(raw, power=False, shuffle=True, date='20261030'):
+def apply(raw, power=False, shuffle=True, date='20261031'):
     raw = bytearray(raw)
     sites = skip_sites() + about_sites()
     if shuffle:
@@ -533,7 +532,7 @@ def main(argv):
     if rec:
         out = recovery(raw, date or '20261031')
     else:
-        out = apply(raw, date=date or '20261030', **opts)
+        out = apply(raw, date=date or '20261031', **opts)
     open(pos[1], 'wb').write(out)
     print(f"wrote {pos[1]}  (dated {parse_header(out)['date']})")
 

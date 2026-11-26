@@ -20,7 +20,7 @@ python3 mods/navilib.py NANOV200.IMG NANOV200_navilib.IMG
 
 The script checks the original bytes at every patch site and refuses anything that isn't stock V2.0.0, then fixes up the CRC. No keystone needed: the assembled bytes are included in the script, and the asm source is kept alongside them.
 
-Flash it like an official update (see the main README), renamed to `NANOV200.IMG`. The image is dated 2026‑10‑30, one day after stock (see the main README on dates). Then **run Media library → Update media library once.** The old database has no album key, so until you rescan, everything shows up as one big album.
+Flash it like an official update (see the main README), renamed to `NANOV200.IMG`. The image is dated 2026‑10‑31 (see the main README on dates). Then **run Media library → Update media library once.** The old database has no album key, so until you rescan, everything shows up as one big album.
 
 ## Check a folder before copying it
 
@@ -72,10 +72,10 @@ python3 mods/nanitec.py  --recovery NANOV200.IMG NANOV200_recovery.IMG
 | **Hold-to-scroll acceleration** (new) | Holding Next/Prev in a library list (Songs, Albums, Artists, …) speeds up after about 1, 3 and 6 s. The browser takes every step itself, so the screen stays correct. While accelerating it stops at the first/last item instead of wrapping. Only active in media-library lists: Now Playing seeking, menus and volume are stock | 200‑song list: end reached in 7.5 s instead of about 21 s (about 36 items/s, limited by redraw); stops at 199 and 0; Select plays the right song |
 | **Random Album** (main menu, 7th item, new) | Picks a random album and plays it **in order** from track 1. Play order is set to normal, and a shuffle play mode becomes repeat-all | album list → random album → track 1 plays (e.g. "Parousia", Disc1 Track1, 1/4). Disc icon, all 7 labels, wraps both ways |
 | About version | Software version shows `2.0.0m` | ✓ |
-| Newer date | Image dated 2026‑10‑30 (see above) | n/a |
+| Date | Image dated 2026‑10‑31 (see the main README) | n/a |
 | Power saving (`--power`, off by default) | Decode core 144 MHz (MP3/AAC/WMA/WAV), 240 (OGG), 288 (FLAC/ALAC) instead of 300–480. CPU sleeps (WFI) between events with the screen on. Wheel polled every 1 ms instead of 0.4 ms | boots, UI and playback run. Battery gain and hi‑res dropouts can't be measured in the emulator (nanitecfw hasn't measured them on hardware either) |
 
-**Recovery:** `--recovery` writes FiiO's unmodified V2.0.0 code dated 2026‑10‑31, so it takes priority over a modded image. If you flash a mod again after that, give it a newer date (`--date 20261101`), and so on.
+**Recovery:** `--recovery` writes FiiO's unmodified V2.0.0 code, dated 2026‑10‑31 like the mods. The updater installs whatever file it finds, and a 10‑31 image is known to install over another 10‑31 image, so you can switch between mods and recovery in either direction.
 
 **Not ported (yet):** nanitecfw's C code that runs during the library refresh. That covers the roughly 5× faster refresh, *Recent Albums*, the track‑artist *Artists* list next to *Album Artists*, and `CFWLOG.TXT`. V2.0.0 rewrote the media‑browser module (mod23) and moved the refresh pipeline, so this needs about 35 firmware symbols re-derived rather than relocated. Its track‑artist field (+0x100) also collides with navilib's album key, which would have to move to +0x200.
 

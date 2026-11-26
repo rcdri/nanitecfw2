@@ -55,8 +55,8 @@ no byte the mods overwrite may be referenced by live stock code.
 
 | Output | Contents | Date |
 |---|---|---|
-| `out/NANOV200_mod.IMG` | navilib + nanitec + turbo + opus | 2026‑10‑30 |
-| `out/NANOV200_mod_power.IMG` | the same with `nanitec --power` | 2026‑10‑30 |
+| `out/NANOV200_mod.IMG` | navilib + nanitec + turbo + opus | 2026‑10‑31 |
+| `out/NANOV200_mod_power.IMG` | the same with `nanitec --power` | 2026‑10‑31 |
 | `out/NANOV200_recovery.IMG` | unmodified V2.0.0 code | 2026‑10‑31 |
 
 Each mod also runs on its own, on stock or on another mod's output (`python3 mods/<mod>.py IN.IMG
@@ -82,9 +82,14 @@ reboot and the player booted normally, it never found the file (wrong folder, or
 About still says `2.0.0`, the update didn't take.
 
 Neither the boot scan nor the updater compares dates: any `NANOVnnn.IMG` gets installed. Still, a
-build dated 2026‑11‑01 was once ignored on a real player for reasons nobody has found. So
-`build.sh` keeps the known-good dates: mods 2026‑10‑30, recovery 2026‑10‑31 (stock is 10‑29).
-`DATE=YYYYMMDD ./build.sh …` changes them.
+build dated 2026‑11‑01 was once ignored on a real player for reasons nobody has found. The boot
+loader, which isn't part of the image, may be involved. So `build.sh` dates every image
+**2026‑10‑31**. Observed on real players:
+- 10‑30 installed over stock (10‑29);
+- 10‑31 installed over 10‑30 and over another 10‑31.
+
+10‑31 over stock follows the same later-day-same-month pattern. `DATE=… RDATE=… ./build.sh …`
+changes the date, but untested dates are a risk.
 
 ### Upgrading from an older build
 

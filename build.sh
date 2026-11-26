@@ -3,7 +3,7 @@
 #
 #   ./build.sh NANOV200.IMG [OUT_DIR]          (default OUT_DIR: out)
 #
-#   OUT_DIR/NANOV200_mod.IMG        navilib + nanitec + turbo + opus          dated $DATE  (20261030)
+#   OUT_DIR/NANOV200_mod.IMG        navilib + nanitec + turbo + opus          dated $DATE  (20261031)
 #   OUT_DIR/NANOV200_mod_power.IMG  the same with nanitec --power             dated $DATE
 #   OUT_DIR/NANOV200_recovery.IMG   unmodified V2.0.0 code                    dated $RDATE (20261031)
 #
@@ -11,7 +11,7 @@
 set -e
 IN=${1:?usage: ./build.sh NANOV200.IMG [OUT_DIR]}
 OUT=${2:-out}
-DATE=${DATE:-20261030}
+DATE=${DATE:-20261031}
 RDATE=${RDATE:-20261031}
 HERE=$(cd "$(dirname "$0")" && pwd)
 PY=${PYTHON:-python3}

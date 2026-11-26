@@ -27,8 +27,7 @@ The new code lives in a block of dead code in the resident segment
 (0x030517F0..0x0305199A: four debug framebuffer/glyph dump routines that
 nothing calls).
 
-The image is dated 2026-10-30, one day after stock: the loader boots the
-firmware copy with the newest date.
+The image is dated 2026-10-31 (see README.md, "Install").
 
 After flashing, run Media library -> Update media library once (records made
 by the stock firmware have no album key).
@@ -262,7 +261,7 @@ def apply(raw):
         o = cave_off + (at - CAVE)
         raw[o:o + len(blob)] = blob
     # newer date than stock: the loader boots the firmware copy with the newest date
-    raw[0:4] = bytes.fromhex('26203010')          # 2026-10-30 (stock V2.0.0: 2026-10-29)
+    raw[0:4] = bytes.fromhex('26203110')          # 2026-10-31 (stock V2.0.0: 2026-10-29)
     size = parse_header(bytes(raw))['size']
     return fwtool.finalize(bytes(raw[:size]))
 
