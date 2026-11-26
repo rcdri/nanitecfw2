@@ -51,6 +51,13 @@ no byte the mods overwrite may be referenced by live stock code.
 
 ## Build
 
+**In the browser:** [rcdri.github.io/nanitecfw2](https://rcdri.github.io/nanitecfw2/). Choose the
+official `NANOV200.IMG` and it gives you the modded image and the recovery image. It runs this
+repo's scripts with [Pyodide](https://pyodide.org/) (`web/build.py`, the same bytes as `build.sh`),
+in the tab: the firmware isn't uploaded anywhere.
+
+**On your computer:**
+
 ```sh
 ./build.sh NANOV200.IMG            # writes out/
 ```
@@ -172,6 +179,7 @@ image unpack/pack workflow in `fwtool.py`.
 | Path | What |
 |---|---|
 | `build.sh` | builds the two images from the official file |
+| `index.html`, `web/` | the web patcher (GitHub Pages): `web/build.py` builds both images in one process, `web/worker.js` runs it with Pyodide |
 | `mods/` | `navilib.py`, `nanitec.py`, `turbo.py` (+ `turbo/cache.c`), `opus.py` (+ `opus/`: decoder glue, build, `bench.py`), [`README.md`](mods/README.md) with what each mod patches and how it was tested |
 | `echonano.py`, `emu/` | the emulator |
 | `fwtool.py`, `rkfw.py`, `rkcrc.py`, `fwmem.py`, `mkdisk.py` | image unpack/pack/patch/CRC, eMMC/SD image helpers |

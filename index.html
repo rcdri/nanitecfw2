@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECHO NANO firmware patcher · nanitecfw2</title>
+<meta name="description" content="Apply the nanitecfw2 mods to the SNOWSKY ECHO NANO V2.0.0 firmware in your browser.">
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #fff; --ink: #1c1b19; --muted: #6b675f; --line: #e2dfd8;
+    --accent: #1f5f8b; --accent-ink: #fff; --ok: #2e7d4f; --bad: #b3261e; --warn-bg: #fff6e0; --warn-line: #f0d48a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --card: #1e1e1c; --ink: #ecebe7; --muted: #a29e95; --line: #34332f;
+      --accent: #6cb4e8; --accent-ink: #0d1b25; --ok: #6fcf97; --bad: #ff8a80; --warn-bg: #2a2416; --warn-line: #5c4a1c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 1rem; margin: 0 0 10px; display: flex; gap: 10px; align-items: baseline; }
+  h2 .n { font: 600 .8rem var(--mono); color: var(--muted); }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  .lead { color: var(--muted); margin-bottom: 20px; }
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 10px; padding: 12px 14px; font-size: .92rem; margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 14px; margin-bottom: 14px; }
+  .card.off { opacity: .55; }
+  .drop {
+    display: block; border: 2px dashed var(--line); border-radius: 10px; padding: 22px 14px; text-align: center;
+    cursor: pointer; color: var(--muted); transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .drop strong { color: var(--ink); }
+  .drop input { display: none; }
+  .status { margin: 12px 0 2px; font-size: .93rem; min-height: 1.4em; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  .hash { font: .78rem/1.4 var(--mono); color: var(--muted); word-break: break-all; }
+  button, .btn {
+    display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; padding: 10px 16px;
+    font: 600 .95rem system-ui, sans-serif; cursor: pointer; text-decoration: none;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  button:disabled { opacity: .45; cursor: default; }
+  .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .8s linear infinite; display: inline-block; vertical-align: -2px; margin-right: 6px; }
+  @keyframes s { to { transform: rotate(1turn); } }
+  ol, ul { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  .small { font-size: .88rem; color: var(--muted); }
+  code { font: .88em var(--mono); background: color-mix(in srgb, var(--muted) 14%, transparent); padding: 1px 5px; border-radius: 4px; }
+  footer { margin-top: 32px; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>ECHO NANO firmware patcher</h1>
+  <p class="lead">Applies the <a href="https://github.com/rcdri/nanitecfw2">nanitecfw2</a> mods to FiiO's official
+    V2.0.0 firmware for the SNOWSKY ECHO NANO. The repo's own patch scripts run in this tab, so your file is never
+    uploaded anywhere.</p>
+
+  <div class="warn">Not affiliated with FiiO or SNOWSKY. Modded firmware can brick a player: read
+    <a href="https://github.com/rcdri/nanitecfw2#recovery">Recovery</a> before flashing. Use at your own risk.</div>
+
+  <section class="card" id="step1">
+    <h2><span class="n">1</span> Choose the official firmware</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".img,.IMG">
+      <strong>Choose NANOV200.IMG</strong> or drop it here<br>
+      <span class="small">FiiO's V2.0.0 update file (2026-10-29), about 11 MB</span>
+    </label>
+    <div class="status" id="fileStatus"></div>
+  </section>
+
+  <section class="card off" id="step2">
+    <h2><span class="n">2</span> Patch</h2>
+    <div class="row"><button id="patch" disabled>Patch firmware</button></div>
+    <div class="status" id="patchStatus"></div>
+  </section>
+
+  <section class="card off" id="step3">
+    <h2><span class="n">3</span> Download and install</h2>
+    <div class="row">
+      <a class="btn" id="dlMod" download="NANOV200.IMG">Download NANOV200.IMG</a>
+      <a class="btn secondary" id="dlRec" download="NANOV200_recovery.IMG">Recovery image</a>
+    </div>
+    <p class="hash" id="hashes"></p>
+    <ol>
+      <li>Copy <code>NANOV200.IMG</code> to the <strong>root of the player's internal storage</strong>
+        (not the microSD card, not a folder).</li>
+      <li>Eject and unplug, hold power to switch it off, then switch it on. The player shows
+        系统升级中 ("upgrading") while it installs, deletes the file and restarts.</li>
+      <li>About should show <code>2.0.0m</code>. Run <strong>Media library → Update media library</strong> once.</li>
+    </ol>
+    <p class="small">The recovery image is FiiO's unmodified code with a newer date: rename it to
+      <code>NANOV200.IMG</code> and install it the same way to go back to stock. Updating from a build made before
+      2026-11-26? See <a href="https://github.com/rcdri/nanitecfw2#upgrading-from-an-older-build">this note</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>What you get</h2>
+    <ul>
+      <li><strong>Navidrome-style library</strong>: albums by album + album artist, titles from tags,
+        <code>A; B</code> artists under A, <code>.cue</code> sheets ignored (Settings switch back to Stock)</li>
+      <li><strong>Opus playback</strong> and a faster Ogg/Opus tag scan</li>
+      <li><strong>Faster library refresh</strong> and boot</li>
+      <li><strong>Shuffle</strong> and <strong>Random Album</strong> in the main menu, hold-to-scroll acceleration</li>
+      <li><strong>Power saving</strong> switch in System Settings</li>
+      <li>Unsupported tracks skipped silently, and a stock crash after a library refresh fixed</li>
+    </ul>
+    <p class="small">Details: <a href="https://github.com/rcdri/nanitecfw2#features">README</a> ·
+      <a href="https://github.com/rcdri/nanitecfw2/blob/main/mods/README.md">what each mod patches</a></p>
+  </section>
+
+  <footer>
+    Same result as <code>./build.sh NANOV200.IMG</code> from this commit of
+    <a href="https://github.com/rcdri/nanitecfw2">rcdri/nanitecfw2</a> (MIT). Python runs in your browser with
+    <a href="https://pyodide.org/">Pyodide</a>, loaded from jsDelivr.
+  </footer>
+</main>
+
+<script>
+const STOCK_SHA256 = 'e60ddde7ceae9c83f95db7710f4633a31cf72295d4821128274718dec16ff993';
+const $ = (id) => document.getElementById(id);
+let image = null, worker = null, busy = false, urls = [], lastProgress = '';
+
+function status(el, text, cls = '', spin = false) {
+  el.className = 'status ' + cls;
+  el.innerHTML = '';
+  if (spin) el.insertAdjacentHTML('beforeend', '<span class="spin"></span>');
+  el.append(text);
+}
+
+async function sha256(buf) {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+  return Array.from(d, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function startWorker() {
+  if (worker) return;
+  worker = new Worker('web/worker.js', { type: 'module' });
+  worker.onmessage = onWorker;
+  worker.onerror = (e) => fail('The patcher stopped: ' + (e.message || 'unknown error'));
+  worker.postMessage({ cmd: 'init' });     // start downloading Python while the file is checked
+}
+
+function fail(msg) {
+  busy = false;
+  status($('patchStatus'), msg, 'bad');
+  $('patch').disabled = !image;
+}
+
+function onWorker(e) {
+  const m = e.data;
+  if (m.type === 'progress') {
+    lastProgress = m.msg;
+    if (busy) status($('patchStatus'), m.msg, '', true);
+  } else if (m.type === 'ready') lastProgress = '';
+  else if (m.type === 'error') {
+    if (busy) fail(m.msg);
+    else { worker.terminate(); worker = null; lastProgress = ''; }   // failed while preloading: retry on Patch
+  } else if (m.type === 'done') showResult(m);
+}
+
+async function showResult(m) {
+  busy = false;
+  urls.forEach(URL.revokeObjectURL);
+  const mod = new Blob([m.mod]), rec = new Blob([m.recovery]);
+  urls = [URL.createObjectURL(mod), URL.createObjectURL(rec)];
+  $('dlMod').href = urls[0];
+  $('dlRec').href = urls[1];
+  $('hashes').textContent = 'SHA-256  NANOV200.IMG ' + await sha256(m.mod) +
+    '  ·  recovery ' + await sha256(m.recovery);
+  status($('patchStatus'), 'Done.', 'ok');
+  $('patch').disabled = false;
+  $('step3').classList.remove('off');
+  $('step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function pick(file) {
+  if (!file || busy) return;
+  image = null;
+  $('patch').disabled = true;
+  $('step2').classList.add('off');
+  $('step3').classList.add('off');
+  $('dlMod').removeAttribute('href');
+  $('dlRec').removeAttribute('href');
+  status($('patchStatus'), '');
+  status($('fileStatus'), 'Checking ' + file.name + '…', '', true);
+  startWorker();
+  const buf = await file.arrayBuffer();
+  const h = await sha256(buf);
+  if (h !== STOCK_SHA256) {
+    status($('fileStatus'), `${file.name} isn't FiiO's official V2.0.0 NANOV200.IMG, the only version these ` +
+      'mods know (a modded or older image won\'t work either).', 'bad');
+    $('fileStatus').insertAdjacentHTML('beforeend', `<div class="hash">SHA-256 ${h}<br>expected ${STOCK_SHA256}</div>`);
+    return;
+  }
+  image = buf;
+  status($('fileStatus'), `✓ ${file.name}: official V2.0.0 (${(buf.byteLength / 1048576).toFixed(1)} MB)`, 'ok');
+  $('step2').classList.remove('off');
+  $('patch').disabled = false;
+}
+
+$('file').addEventListener('change', (e) => pick(e.target.files[0]));
+const drop = $('drop');
+['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
+
+$('patch').addEventListener('click', () => {
+  if (!image || busy) return;
+  busy = true;
+  $('patch').disabled = true;
+  $('step3').classList.add('off');
+  startWorker();
+  status($('patchStatus'), lastProgress || 'Starting…', '', true);
+  worker.postMessage({ cmd: 'build', buf: image });
+});
+</script>
+</body>
+</html>
