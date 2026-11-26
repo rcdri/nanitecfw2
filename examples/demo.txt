@@ -1,0 +1,23 @@
+# Headless tour: boot, browse the internal storage, play the first track.
+#   python3 echonano.py script NANOV200.IMG examples/demo.txt --music ~/some/folder
+gif demo.gif
+wait 7
+shot 01_main_menu.png
+press prev            # Media library
+wait 1
+press prev            # File browser
+wait 1
+press ok
+wait 2
+press ok              # internal storage
+wait 3
+shot 02_files.png
+press ok              # play the highlighted file
+wait 8
+shot 03_now_playing.png
+press menu            # options for the current track
+wait 2
+shot 04_options.png
+press back
+wait 2
+gif stop
