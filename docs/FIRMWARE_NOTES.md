@@ -17,13 +17,14 @@ Tools: `tools/fwre.py` (segments, disassembly, references), `fwtool.py unpack` (
   - 2026‑10‑31 installed over 10‑30, and over 10‑31 again;
   - one image dated 2026‑11‑01 was ignored.
 
-  The firmware does contain a date check: mod1 0x0307b95c compares the two copies as
-  `(year << 16) | (month << 8) | day`, a correct calendar order, so 11‑01 counts as newer. That
-  check never runs in an emulated boot and has no static caller. Replaying the 11‑01 install on
-  the real player's layout (26 MB system area, stale header at LBA 22528) installs and boots it.
-  The refusal therefore came from outside the image, from the boot area's loader or the ROM, or
-  from that attempt itself. The build dates every image 2026‑10‑31, which is proven to reinstall
-  over itself.
+  Nothing that decides what boots compares dates:
+  - the boot loader always boots a valid copy 1 (see below);
+  - the firmware's own copy check (mod1 0x0307b95c, a correct `(year << 16) | (month << 8) | day`
+    order) has no caller and never runs in an emulated boot.
+
+  Replaying the 11‑01 install on the real player's layout installs and boots it. That attempt
+  failed for another reason, most likely the file not being found. The build still dates every
+  image 2026‑10‑31.
 - Stage 3 is the code: `{base 0x03050000, count 91}`, then one 32-byte entry per segment
   `{code_va, code_pa, code_sz, data_va, data_pa, data_sz, bss_pa, bss_sz}`. 62 entries are used.
   - Segment 0 is resident (code 0x03050000+0x278f0, data 0x03004000).
@@ -139,6 +140,24 @@ The internal eMMC as the firmware (and RockUSB Loader mode) addresses it, in 512
 On a real ECHO NANO (480 MB of flash) the system area is 26 MB: copy 2 at LBA 26624, user
 partition at LBA 462912. The boot area (ID block, loader) sits before LBA 0 and is not reachable
 through these LBAs.
+
+**Boot loader.** FiiO's flash loader, NandBoot2, is in the factory image of FiiO's own recovery kit
+(ECHO-Firmware-Tool, `Echo Nano/NANO_F512M_…_SW_V1.4.0_…img`: an RKFW package whose BOOT section
+holds the RC4-scrambled stages; decoded per 512-byte sector with Rockchip's usual key, it runs at
+0x03000000). It does this:
+- It reads the system-area size from the ID block.
+- FW1 is the start of the system area.
+- FW2 is the **first** sector with the `RKnanoFW` tag counting up from FW1's 1 MB slot end,
+  `((size + 0x104000) >> 20) << 11`, in 1 MB steps, at most 16. Its end copy isn't checked here.
+- It boots FW1 after a full check: tag, end copy, every segment.
+- Only if that fails does it try FW2. A persistent boot marker of 0x18cf makes it try FW2 first.
+- It compares no dates.
+
+Factory flashing puts copy 2 at FW1's slot end (LBA 22528 for these 11 MB images), while V2.0.0
+updates write it at half the system area (LBA 26624 on a 26 MB system area). The factory copy's
+tag survives in the unused tail of copy 1's slot and the search stops there. That stale copy
+fails the full check, so the real copy 2 is never used as a fallback. `tools/echofix.py fallback`
+clears that one sector (after a backup), and `info` reports where the fallback lands.
 
 **Copy check** (mod1 0x0307b95c; not seen to run, see Dates):
 - It validates copy 1 by its tag and end copy.

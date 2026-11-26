@@ -82,10 +82,11 @@ firmware copy, copies it over the first, then deletes the file. If the file is s
 reboot and the player booted normally, it never found the file (wrong folder, or the SD card). If
 About still says `2.0.0`, the update didn't take.
 
-Neither the boot scan nor the updater compares dates: any `NANOVnnn.IMG` gets installed. Still, a
-build dated 2026‑11‑01 was once ignored on a real player. Replaying that install in the emulator,
-on the real player's flash layout, works. The cause is outside the image, in the boot loader, or
-in that attempt (see [Dates](docs/FIRMWARE_NOTES.md)). So `build.sh` dates every image
+Dates don't matter. The boot scan and the updater install any `NANOVnnn.IMG`, and FiiO's boot
+loader always starts a valid copy 1 without comparing dates (see
+[FIRMWARE_NOTES](docs/FIRMWARE_NOTES.md)). A build dated 2026‑11‑01 was once reported not to
+install, but replaying it on the real player's flash layout works, so that attempt failed for
+another reason. So `build.sh` dates every image
 **2026‑10‑31**. Observed on real players:
 - 10‑30 installed over stock (10‑29);
 - 10‑31 installed over 10‑30 and over another 10‑31.
@@ -118,6 +119,7 @@ firmware can't break.
    pkg install python
    su -c "$PREFIX/bin/python echofix.py info"     # read-only: both firmware copies + the storage root
    su -c "$PREFIX/bin/python echofix.py fix"      # renames NANOV*.IMG -> .BAK (one directory sector)
+   su -c "$PREFIX/bin/python echofix.py fallback" # see below
    su -c "$PREFIX/bin/python echofix.py reboot"
    ```
 
@@ -125,6 +127,11 @@ firmware can't break.
 
    `fix` saves the sector it changes to `echofix-backup-*.bin` first, reads it back to check it,
    and refuses to write anything if firmware copy 1 looks damaged.
+
+   `info` also shows where the boot loader's fallback lands. Players flashed at the factory keep a
+   stale header from that first flash between the two copies. The loader stops at it, so it never
+   falls back to the real second copy. `fallback` clears that one sector the same careful way. It
+   only acts when both firmware copies are complete and the stale copy is broken.
 3. If a firmware copy itself is damaged, rewrite copy 1 from a stock `NANOV200.IMG` with
    `rkdeveloptool`. Copy 1 is at LBA 0. Write the image's first 11 MiB (`0xB00000` bytes) there in
    16-sector chunks and read each one back, as in TheMVS's

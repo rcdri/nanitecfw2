@@ -7,6 +7,7 @@ Termux on a rooted phone with the player on USB-OTG.
 
     su -c "$PREFIX/bin/python echofix.py info"     # read-only checks
     su -c "$PREFIX/bin/python echofix.py fix"      # rename NANOV*.IMG -> .BAK (-y: no prompt)
+    su -c "$PREFIX/bin/python echofix.py fallback" # make the loader's fallback find copy 2
     su -c "$PREFIX/bin/python echofix.py reboot"   # leave Loader mode
 
 `fix` only rewrites the directory sector(s) that hold the update file's
@@ -463,6 +464,50 @@ def check_slots(disk, sys_sectors=None):
             print(f'  copy 2 (LBA {l2}): no header')
     return ok
 
+def copy_at(disk, lba):
+    """(header, complete) for a firmware copy starting at lba"""
+    s = disk.read(lba)
+    h = fw_header(s)
+    return h, bool(h) and disk.read(lba + h['size'] // SECTOR) == s
+
+
+def loader_copy2(disk):
+    """Where FiiO's boot loader (NandBoot2) looks for its fallback copy: the first
+    sector with an RKnanoFW tag, counting up from copy 1's 1 MB slot end in 1 MB
+    steps, at most 16. It doesn't check that copy's end copy until it tries to
+    boot it, so a stale tag in between hides the real copy 2."""
+    h1 = fw_header(disk.read(0))
+    if not h1:
+        return None
+    lba = ((h1['size'] + 0x104000) >> 20) << 11
+    for _ in range(16):
+        if fw_header(disk.read(lba)):
+            return lba
+        lba += 0x800
+    return None
+
+
+def check_fallback(disk, sys_sectors):
+    """-> (state, stale_lba): ok / stale / nocopy2 / unknown"""
+    if not sys_sectors:
+        return 'unknown', None
+    c2 = sys_sectors // 2
+    found = loader_copy2(disk)
+    _, c2_ok = copy_at(disk, c2)
+    if found == c2 and c2_ok:
+        print(f'  boot loader fallback: copy 2 at LBA {c2} (ok)')
+        return 'ok', None
+    if not c2_ok:
+        print(f'  boot loader fallback: copy 2 at LBA {c2} is incomplete; install the firmware once more')
+        return 'nocopy2', None
+    if found is not None and found < c2 and not copy_at(disk, found)[1]:
+        h, _ = copy_at(disk, found)
+        print(f"  boot loader fallback: a stale {h['date']} header at LBA {found} hides copy 2 "
+              f"(LBA {c2}); 'echofix.py fallback' clears it")
+        return 'stale', found
+    print(f'  boot loader fallback: finds {found}, copy 2 is at LBA {c2}; not something this tool fixes')
+    return 'unknown', None
+
 # ---------------------------------------------------------------- main
 def connect():
     path, desc = find_device()
@@ -489,7 +534,7 @@ def connect():
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'help'
-    if cmd not in ('info', 'fix', 'reboot'):
+    if cmd not in ('info', 'fix', 'fallback', 'reboot'):
         print(__doc__)
         return
     rk, total = connect()
@@ -501,6 +546,20 @@ def main():
     fs = open_fs(disk, total)
     print('firmware:')
     slots_ok = check_slots(disk, fs.sys_sectors if fs else None)
+    fb, stale = check_fallback(disk, fs.sys_sectors if fs else None) if slots_ok else ('unknown', None)
+    if cmd == 'fallback':
+        if fb != 'stale':
+            print('Nothing to do.' if fb == 'ok' else 'Not changing anything.')
+            return
+        h1 = fw_header(disk.read(0))
+        assert h1['size'] // SECTOR < stale < fs.sys_sectors // 2   # between the two copies
+        if '-y' not in sys.argv and input(f'Clear the stale header sector at LBA {stale}? [y/N] ').strip().lower() != 'y':
+            return
+        disk.write_verified(stale, bytes(SECTOR))
+        if loader_copy2(disk) != fs.sys_sectors // 2:
+            raise SystemExit('!! the loader would still not find copy 2. Send me this output.')
+        print(f'Done: the boot loader now falls back to copy 2 at LBA {fs.sys_sectors // 2}.')
+        return
     print('internal storage:')
     if fs is None:
         raise SystemExit('  no FAT32/exFAT filesystem found - stopping, nothing written.')
