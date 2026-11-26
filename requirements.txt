@@ -1,0 +1,6 @@
+unicorn>=2.0.1
+pillow
+pyfatfs
+# optional
+capstone
+keystone-engine

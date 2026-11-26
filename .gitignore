@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.cache_sweep_*.pkl
+# firmware images and disk images are never committed
+*.IMG
+*.img
+*.bin
+!mods/opus/build/opus.bin
+out/
+echofix-backup-*.bin
+# local libopus checkout used by mods/opus/build.sh
+mods/opus/libopus/
