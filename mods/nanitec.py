@@ -20,6 +20,12 @@ What it changes:
             "Random Album": picks a random album and plays it in order from
             track 1 (play order normal; a shuffle play mode becomes repeat-all).
   about     About shows the software version as "2.0.0m".
+  screenoff Stock bug: with the screen off, keys go straight to the music
+            service (mod33) so next/prev work blind. After a library refresh
+            the index builder (mod40) still sits where mod33 lives, and the
+            first key press after the screen times out jumped into it: crash,
+            reboot. Keys now take that path only while mod33 is in memory;
+            otherwise they're handled like any key with the screen on.
   date      The image is dated 2026-10-31 (later day than stock's 10-29; seen to
             install over 10-30 and 10-31 builds; see README.md, "Install").
   power     (--power, off by default) lower decode-core clocks during playback,
@@ -71,7 +77,8 @@ K2_POOL_END = 0x0305EF1C
 K2_END = 0x0305F0C4
 STRIP = K2                      # ..K2_POOL
 ROUTE = K2 + 0x3C
-KEY = K2_POOL_END               # ..TAG_AT of mods/opus.py (0x0305F05C)
+KEY = K2_POOL_END               # ..SCREENOFF
+SCREENOFF = 0x0305F024          # screen-off key guard (28 bytes), ..TAG_AT of mods/opus.py
 KEY_END = 0x0305F05C
 K2_POOL_STOCK = '407d0703447d0703007d07030c7d0703047d0703f7ffff0f027d0703'
 FLAG = 0x0309C1F0               # free RAM (see turbo): random-album second step countdown
@@ -337,7 +344,7 @@ def shuffle_sites():
     strip = code('strip', ASM_STRIP, STRIP)
     key = code('key', ASM_KEY, KEY)
     assert STRIP + len(strip) <= ROUTE and ROUTE + len(route) <= K2_POOL, (len(strip), len(route))
-    assert K2_POOL_END <= KEY and KEY + len(key) <= KEY_END, len(key)
+    assert K2_POOL_END <= KEY and KEY + len(key) <= SCREENOFF, len(key)
     icons = struct.pack('<7I', *STOCK_ICONS, ICON, ALBUM_ICON)
     assert ICON + 40 <= ALBUM_ICON and ALBUM_ICON + 40 <= MENU_TABLE and MENU_TABLE + 56 <= MM_CAVE_END
     menu = bytes.fromhex('0100000000000300 0101010000005800 0102020000000000 0103030000000100'
@@ -372,6 +379,43 @@ def shuffle_sites():
         (23, 0x0307CAD6, H('e6f700fc'), bl(KEY, 0x0307CAD6)),
     ] + [('str', 0x82, lang, txt) for lang, txt in SHUFFLE_STR.items()] \
       + [('str', 0x83, lang, txt) for lang, txt in ALBUM_STR.items()]
+
+
+# Key pre-processing (0x030632da) ends with:
+#   0x03063c14  ldrb r0,[r7]; cmp r0,#1; beq 0x03063c20    (r7 = 0x0300c6bc, 1 = screen off)
+# and 0x03063c20.. calls mod33 (0x03081d92 / 0x03083286 / 0x030832ea). The ldrb+cmp become
+# "bl SCREENOFF", which sets Z only if the screen is off AND mod33 is resident (its word at
+# 0x03081d90 is 0xf0010c7c; mod40 and mod63, which share the range, have 0 there).
+MUSIC_SIG_AT, MUSIC_SIG = 0x03081D90, 0xF0010C7C
+SCREENOFF_CODE = H('3878'         # ldrb  r0, [r7]
+                   '0128'         # cmp   r0, #1
+                   '09d1'         # bne   done
+                   '41f69050'     # movw  r0, #0x1d90
+                   'c0f20830'     # movt  r0, #0x0308
+                   '0068'         # ldr   r0, [r0]
+                   '40f67c41'     # movw  r1, #0x0c7c
+                   'cff20101'     # movt  r1, #0xf001
+                   '8842'         # cmp   r0, r1
+                   '7047')        # done: bx lr
+
+
+def screenoff_sites():
+    assert SCREENOFF + len(SCREENOFF_CODE) <= KEY_END
+    return [
+        (0, SCREENOFF, H('a1f800a0'), None),                  # still the dead FAT routine's code
+        (0, SCREENOFF, None, SCREENOFF_CODE),
+        (0, 0x03063C14, H('3878 0128'), thumb_bl(0x03063C14, SCREENOFF)),
+        (33, MUSIC_SIG_AT, struct.pack('<I', MUSIC_SIG), None),  # signature really is mod33's
+    ]
+
+
+def thumb_bl(src, dst):
+    off = dst - (src + 4)
+    s = (off >> 24) & 1
+    j1 = (~((off >> 23) & 1) ^ s) & 1
+    j2 = (~((off >> 22) & 1) ^ s) & 1
+    return struct.pack('<HH', 0xF000 | (s << 10) | ((off >> 12) & 0x3FF),
+                       0xD000 | (j1 << 13) | (j2 << 11) | ((off >> 1) & 0x7FF))
 
 
 def about_sites():
@@ -482,7 +526,7 @@ def check_power_rows(raw):
 
 def apply(raw, power=False, shuffle=True, date='20261031'):
     raw = bytearray(raw)
-    sites = skip_sites() + about_sites()
+    sites = skip_sites() + about_sites() + screenoff_sites()
     if shuffle:
         sites += shuffle_sites()
     if power:

@@ -101,6 +101,13 @@ loader copying mod21.
 | mod21 0x0307a6e0–0x0307a816 | "UNICODEXDIC" writer | nanitec icon table, icons, menu table (..0x0307a784; only read while mod21 is loaded) |
 | RAM 0x0309c000–0x0309fa00 | unused | turbo sector cache (state ..0x0309c164); nanitec counters at 0x0309c1f0 |
 
+**Overlay trap (stock bug):** with the screen off (flag 0x0300c6bc = 1), key pre-processing at
+0x03063c14 hands keys straight to the music service in mod33 (0x03081d92 and others), so next/prev
+work blind. A library refresh pages mod40 (the index builder, 0x0307a9d0–0x0309b870) over mod33's
+range and leaves it there. Once the screen times out after the refresh, the next key press calls
+into mod40's zeros, slides through RAM and faults: crash and reboot. nanitec now takes that path
+only when mod33's word at 0x03081d90 (0xf0010c7c) is present.
+
 **Not free, despite looking dead:** 0x0306bae8 is called from seg34, and 0x03066162 is the reset
 handler (vector at 0x03050004).
 
