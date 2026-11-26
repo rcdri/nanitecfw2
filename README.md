@@ -120,6 +120,7 @@ firmware can't break.
    su -c "$PREFIX/bin/python echofix.py info"     # read-only: both firmware copies + the storage root
    su -c "$PREFIX/bin/python echofix.py fix"      # renames NANOV*.IMG -> .BAK (one directory sector)
    su -c "$PREFIX/bin/python echofix.py fallback" # see below
+   su -c "$PREFIX/bin/python echofix.py dumpdb"   # read-only: media library database -> echodb.gz
    su -c "$PREFIX/bin/python echofix.py reboot"
    ```
 
@@ -175,7 +176,8 @@ image unpack/pack workflow in `fwtool.py`.
 | `fwtool.py`, `rkfw.py`, `rkcrc.py`, `fwmem.py`, `mkdisk.py` | image unpack/pack/patch/CRC, eMMC/SD image helpers |
 | `tools/fwre.py` | disassembly / reference search for the firmware |
 | `tools/cavecheck.py` | proves no live code references the bytes a build overwrites (run by `build.sh`) |
-| `tools/echofix.py` | RockUSB Loader-mode rescue: inspect the firmware copies, rename a stuck update file |
+| `tools/echofix.py` | RockUSB Loader-mode rescue: inspect the firmware copies, rename a stuck update file, copy the media database (`dumpdb`) |
+| `tools/dbcheck.py` | checks a media database (from `echofix.py dumpdb` or an emulator image): does every album open the songs it should |
 | `tools/navicheck.py` | predicts the navilib Album list from a music folder's tags |
 | `docs/` | [emulator](docs/EMULATOR.md), [firmware notes](docs/FIRMWARE_NOTES.md) (memory map, caves, routines), screenshots |
 | `examples/` | emulator script example |

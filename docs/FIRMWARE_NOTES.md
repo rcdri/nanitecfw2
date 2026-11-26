@@ -54,6 +54,24 @@ Tools: `tools/fwre.py` (segments, disassembly, references), `fwtool.py unpack` (
 album artist (else artist) used by the Artist list, +0x600 the album name the UI shows. Now Playing
 reads tags from the file itself.
 
+**Library database layout** (sectors from "sub 1", see below; `tools/dbcheck.py` reads it):
+- 0: header. u16 at +0x2e songs, +0x30 All-songs entries, +0x32 artists, +0x34 albums, +0x36 genres.
+- 0x1800 (`[0x0300c030]`): song records, 0x800 bytes each. +0x14 sort text (4-digit disc,
+  4-digit track, first 4 characters of the file name), +0x2c `FILE`/`DIR` marker, +0x300 file
+  name, +0x400 title, +0x500 artist, +0x600 album, +0x700 genre.
+- 0x1800 + 0x52000..0x52380: the index (mod40). Song lists are u16 record numbers (0x20 sectors
+  each). Group tables have 8-byte entries: u16 first song, u16 first child group (or first song),
+  u16 child groups (or songs), u16 songs. All songs 0x52000; Artist view: songs 0x52020, artists
+  0x52040, albums 0x520c0; Album view: songs 0x52140, albums 0x52160; Genre view 0x521e0..0x52380.
+- 0x1800 + 0x10000: folder records; 0x1800 + 0x40000/0x44000: the builder's scratch lists.
+
+**Index builder** (mod40 0x0307b0bc): per level it extracts the first 4 UTF-16 units of the field
+(a–z upper-cased), buckets on the first one (CJK by pinyin initial), sorts each bucket's linked
+list and groups equal neighbours. The compare (0x0307a9f4) looks at those 4 units **including
+anything after a NUL**, and only reads both full fields from the database (case-sensitive, up to
+the NUL) when the 4 units are equal. So a string shorter than 4 characters with leftover bytes
+after its NUL sorts and groups apart from the same string without them.
+
 **Clocks:** the per-module table is at 0x03077500. It has 36 rows of 7 words: an id, then frequencies
 that are summed over the active modules, then clamped by the limits at +0x3e0. Fields 5–6 are the
 HiFi (codec) core. The active-module bitmask is at 0x0300cab0. Enter/exit module is

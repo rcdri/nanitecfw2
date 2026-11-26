@@ -9,12 +9,14 @@ Termux on a rooted phone with the player on USB-OTG.
     su -c "$PREFIX/bin/python echofix.py fix"      # rename NANOV*.IMG -> .BAK (-y: no prompt)
     su -c "$PREFIX/bin/python echofix.py fallback" # make the loader's fallback find copy 2
     su -c "$PREFIX/bin/python echofix.py reboot"   # leave Loader mode
+    su -c "$PREFIX/bin/python echofix.py dumpdb"   # copy the media library database
+                                                   # to ./echodb.gz (read-only; see dbcheck.py)
 
 `fix` only rewrites the directory sector(s) that hold the update file's
 name; every sector is saved to ./echofix-backup-*.bin before it is
 written, and read back after.
 """
-import ctypes, errno, glob, os, random, re, struct, sys, time
+import ctypes, errno, glob, gzip, os, random, re, struct, sys, time
 
 SECTOR = 512
 VID = 0x2207
@@ -508,6 +510,38 @@ def check_fallback(disk, sys_sectors):
     print(f'  boot loader fallback: finds {found}, copy 2 is at LBA {c2}; not something this tool fixes')
     return 'unknown', None
 
+# ---------------------------------------------------------------- media database
+DB_MARKER = bytes.fromhex('00460049004c0045')         # record +0x2c: "FILE" (UTF-16BE-ish)
+
+
+def dump_db(disk, sub1, out):
+    """Copy the media library database (header, song records, index lists) to a
+    gzip file for tools/dbcheck.py. Read-only. Offsets are sectors from sub1."""
+    hdr = disk.read(sub1, 0x20)
+    count, = struct.unpack_from('<H', hdr, 0x2e)
+    print(f'  database header at LBA {sub1}: {count} songs')
+    if not 0 < count <= 8192:
+        raise SystemExit('  no media library database there (run Update media library first?)')
+    base = None
+    for cand in [0x1800] + list(range(0x20, 0x4000, 4)):
+        if disk.read(sub1 + cand)[0x2c:0x34] == DB_MARKER:
+            base = cand
+            break
+    if base is None:
+        raise SystemExit('  could not find the song records; send me this output')
+    print(f'  song records at +{base:#x}, index at +{base + 0x52000:#x}')
+    with gzip.open(out, 'wb') as g:
+        g.write(b'ECHODB1\n')
+        for off, n in ((0, 0x20), (base, count * 4), (base + 0x52000, 0x380)):
+            g.write(struct.pack('<II', off, n))
+            for k in range(0, n, 256):
+                g.write(disk.read(sub1 + off + k, min(256, n - k)))
+                print(f'\r  reading +{off:#x}: {min(k + 256, n)}/{n} sectors', end='', flush=True)
+            print()
+        g.write(struct.pack('<II', 0, 0))
+    print(f'wrote {out} ({os.path.getsize(out)} bytes). Check it with: python dbcheck.py {out}')
+
+
 # ---------------------------------------------------------------- main
 def connect():
     path, desc = find_device()
@@ -534,7 +568,7 @@ def connect():
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'help'
-    if cmd not in ('info', 'fix', 'fallback', 'reboot'):
+    if cmd not in ('info', 'fix', 'fallback', 'reboot', 'dumpdb'):
         print(__doc__)
         return
     rk, total = connect()
@@ -544,6 +578,12 @@ def main():
         return
     disk = Disk(rk)
     fs = open_fs(disk, total)
+    if cmd == 'dumpdb':
+        if fs is None:
+            raise SystemExit('  no FAT32/exFAT filesystem found, so the system-area size is unknown.')
+        out = next((a for a in sys.argv[2:] if not a.startswith('-')), 'echodb.gz')
+        dump_db(disk, fs.sys_sectors, out)
+        return
     print('firmware:')
     slots_ok = check_slots(disk, fs.sys_sectors if fs else None)
     fb, stale = check_fallback(disk, fs.sys_sectors if fs else None) if slots_ok else ('unknown', None)
