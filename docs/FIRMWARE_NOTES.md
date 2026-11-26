@@ -102,7 +102,7 @@ loader copying mod21.
 | seg0 0x030517f0–0x0305199a | four unreferenced framebuffer/glyph dumpers | navilib helpers (..0x030518f0), turbo `.hi` (0x030518f0–0x03051988) |
 | seg0 0x0305ee10–0x0305ef00 | first half of the unreferenced FAT routine | nanitec strip (0x0305ee10) and route (0x0305ee4c–0x0305eee4) |
 | seg0 **0x0305ef00–0x0305ef1c** | **literal pool of the live FAT functions** | **untouched** (checked as stock bytes before patching) |
-| seg0 0x0305ef1c–0x0305f0c4 | rest of the FAT routine | nanitec key handler (..0x0305f024), opus tag hook (0x0305f05c–0x0305f0b8) |
+| seg0 0x0305ef1c–0x0305f0c4 | rest of the FAT routine | nanitec key handler (..0x0305f024), screen-off key guard (0x0305f024–0x0305f040), opus tag hook (0x0305f05c–0x0305f0b8) |
 | mod21 0x0307a6e0–0x0307a816 | "UNICODEXDIC" writer | nanitec icon table, icons, menu table (..0x0307a784; only read while mod21 is loaded) |
 | RAM 0x0309c000–0x0309fa00 | unused | turbo sector cache (state ..0x0309c164); nanitec counters at 0x0309c1f0 |
 
@@ -116,7 +116,7 @@ only when mod33's word at 0x03081d90 (0xf0010c7c) is present.
 **Not free, despite looking dead:** 0x0306bae8 is called from seg34, and 0x03066162 is the reset
 handler (vector at 0x03050004).
 
-Free space left: 14 bytes at 0x03051542, 18 at 0x03051988, 28 at 0x0305eee4, 56 at 0x0305f024,
+Free space left: 14 bytes at 0x03051542, 18 at 0x03051988, 28 at 0x0305eee4, 28 at 0x0305f040,
 12 at 0x0305f0b8, and 146 in mod21 (0x0307a784).
 
 ## Internal storage, updates and recovery
