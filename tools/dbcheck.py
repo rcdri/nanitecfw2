@@ -16,8 +16,9 @@ the raw area after the system area):
                   +0x100 navilib album key, +0x300 file name, +0x400 title,
                   +0x500 artist, +0x600 album, +0x700 genre
   0x1800+0x52000  index lists: u16 record numbers (16 KB each) and group tables of
-                  8-byte entries (u16 start, u16 first child / start, u16 children /
-                  count, u16 count). Album view: songs 0x52140, albums 0x52160.
+                  8-byte entries (u16 first song, u16 first child, u16 children,
+                  u16 songs). The player lists an album's songs by child entry
+                  (one song each at the song level), not by its song range. Album view: songs 0x52140, albums 0x52160.
                   Artist view: songs 0x52020, artists 0x52040, albums 0x520c0.
 """
 import gzip, struct, sys
@@ -127,11 +128,16 @@ def main():
         problems += 1
     alb = groups(d, LISTS['al_albums'], n_albums + 1)
     pos = 0
-    for k, (start, s2, n, n2) in enumerate(alb[:n_albums]):
+    shifted = []
+    for k, (start, first, nch, n) in enumerate(alb[:n_albums]):
         part = [recs[songs[p]] for p in range(start, min(start + n, count))]
         why = []
         if start != pos:
             why.append(f'starts at {start}, previous albums end at {pos}')
+        if (first, nch) != (start, n):
+            shifted.append(k)                         # the player lists songs[first:first + nch]
+            if nch != n:
+                why.append(f'{n} songs but {nch} song entries')
         if len({gkey(r) for r in part}) > 1:
             why.append('mixed albums: ' + ', '.join(f'{x!r} x{c}' for x, c in Counter(gkey(r) for r in part).items()))
         if why:
@@ -142,6 +148,17 @@ def main():
     if pos != count:
         print(f'!! Album view groups cover {pos} songs, not {count}')
         problems += 1
+    if shifted:
+        problems += 1
+        print(f'!! the player opens {len(shifted)} of {n_albums} albums at the wrong songs '
+              f'(first: album #{shifted[0]})')
+    lost = [i for i in range(count) if i not in set(songs[:count])]
+    if lost:
+        print(f'!! {len(lost)} songs missing from the Album view song list, e.g. '
+              + ', '.join(repr(recs[i]['file']) for i in lost[:5]))
+    cue = [r for r in recs if struct.unpack_from('<I', d.read(BASE + 4 * r['i'], 12), 8)[0]]
+    if cue:
+        print(f'{len(cue)} songs come from .cue sheets: ' + ', '.join(sorted({repr(r["file"]) for r in cue})[:8]))
     keys = Counter(gkey(r) for r in recs)
     print(f'Album view: {n_albums} albums, {len(keys)} distinct albums in the records')
 
@@ -150,10 +167,12 @@ def main():
     arts = groups(d, LISTS['ar_artists'], n_artists + 1)
     n_aral = sum(g[2] for g in arts[:n_artists])
     aral = groups(d, LISTS['ar_albums'], n_aral + 1)
+    ashift = 0
     for k, (start, child, nch, n) in enumerate(arts[:n_artists]):
         sub = aral[child:child + nch]
         p = start
-        for j, (s, _, c, _) in enumerate(sub):
+        for j, (s, first, nc, c) in enumerate(sub):
+            ashift += (first, nc) != (s, c)
             part = [recs[asongs[q]] for q in range(s, min(s + c, count))]
             why = []
             if s != p:
@@ -172,6 +191,9 @@ def main():
             problems += 1
             if problems <= 30:
                 print(f"!! artist #{k}: its albums cover {p - start} songs, the artist has {n}")
+    if ashift:
+        problems += 1
+        print(f'!! the player opens {ashift} of {n_aral} albums in the Artist view at the wrong songs')
     print(f'Artist view: {n_artists} artists, {n_aral} artist albums')
     print('problems:', problems)
 
@@ -182,15 +204,21 @@ def main():
                 print(f"   {r['sort'][:8]}  {r['title']!r}  [album {r['album']!r}, artist {r['artist']!r}]  "
                       f"{r['file']!r}")
         hit = lambda part: part and (text in part[0]['album'].lower() or any(text in r['title'].lower() for r in part))
-        for k, (start, _, n, _) in enumerate(alb[:n_albums]):
+        for k, (start, first, nch, n) in enumerate(alb[:n_albums]):
             part = [recs[songs[p]] for p in range(start, min(start + n, count))]
             if hit(part):
                 show(f'Album view, album #{k}', part)
+                if (first, nch) != (start, n):
+                    print('   the player shows instead: ' + ', '.join(
+                        repr(recs[songs[p]]['title']) for p in range(first, min(first + nch, count))))
         for k, (start, child, nch, n) in enumerate(arts[:n_artists]):
-            for j, (s, _, c, _) in enumerate(aral[child:child + nch]):
+            for j, (s, first, nc, c) in enumerate(aral[child:child + nch]):
                 part = [recs[asongs[q]] for q in range(s, min(s + c, count))]
                 if hit(part):
                     show(f"Artist view, artist #{k} {recs[asongs[start]]['artist']!r}, album {j + 1}", part)
+                    if (first, nc) != (s, c):
+                        print('   the player shows instead: ' + ', '.join(
+                            repr(recs[asongs[q]]['title']) for q in range(first, min(first + nc, count))))
 
 if __name__ == '__main__':
     main()

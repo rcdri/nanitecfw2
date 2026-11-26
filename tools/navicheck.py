@@ -12,6 +12,7 @@ Rules (from the firmware, see mods/README.md):
                (first 126 characters); one Album-list entry per key, shown by ALBUM name
   order      = DISCNUMBER, TRACKNUMBER, then the first 4 characters of the file name
   title      = TITLE, else the file name
+  .cue       = ignored (every audio file is one song)
 FLAC/Ogg (Vorbis comments) are what navilib was verified with; other formats are
 reported with the same rules but marked "unverified".
 """

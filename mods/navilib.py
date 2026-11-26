@@ -23,6 +23,18 @@ What it changes (firmware V2.0.0 only, every patch site is verified first):
    title with the file name. If a file has no title tag, it still falls back
    to the file name.
 
+4. .cue sheets are ignored, as Navidrome does. Stock turns every TRACK of a
+   .cue into a song that points at the sheet's first FILE, so an album of
+   separate files with a leftover .cue got N copies of track 1 (and lost the
+   real track 1). With no PERFORMER line those copies had sort keys starting
+   with a NUL, which the song-level sort silently dropped; the player lists an
+   album's songs by counting entries, so every album after it opened the
+   wrong songs (stock firmware too). The song-level sort now keeps such keys.
+
+5. "A; B" is cut to "A" for the Artist list; the cut now clears the rest of
+   the first 4 characters, so short names like "xi; Nora2r" don't show up as
+   a second "xi".
+
 The new code lives in a block of dead code in the resident segment
 (0x030517F0..0x0305199A: four debug framebuffer/glyph dump routines that
 nothing calls).
@@ -102,12 +114,15 @@ trim:
     ldrh.w  r1, [r0, r3, lsl #1]
     cmp     r1, #0x20           ; drop the space before ';'
     bne     term
-    mov     r2, r3
-    cmp     r2, #0
+    movs    r2, r3
     bne     trim
 term:
     movs    r1, #0
+nul_fill:                       ; NULs up to the 4th char: the index compares 4 chars raw
     strh.w  r1, [r0, r2, lsl #1]
+    adds    r2, #1
+    cmp     r2, #4
+    blo     nul_fill
 cut_done:
     movs    r0, #1              ; the serializer epilogue we replaced
     pop     {r4, r5, r6, pc}
@@ -180,19 +195,19 @@ PREBUILT = {k: bytes.fromhex(v) for k, v in {
     'title': '014601f580704ff4807206f0deb8',
     'key': '05f5807005f5c0617e2331f8022b22b120f8022b013bf8d10de0012220f8022b013b08d005f5a06131f8022b1ab120f8022b013bf8d10022028000f031b8',
     'aa': '30b500230024934211d2c55c0133202df9d05f2df7d0a5f1610cbcf1190f98bf203d11f804c001346545ecd006e011f804c0bcf1000f01d1002030bd012030bd',
-    'cut': '05f5a060002230f8121089b13b2903d001327f2af7d30be052b1531e30f81310202902d11a46002af7d1002120f81210012070bd',
-    'mv': '022d01d0062d04d1b0f800c0bcf1000f01d11bf0dfbd7047',
+    'cut': '05f5a060002230f8121099b13b2903d001327f2af7d30de062b1531e30f81310202901d11a00f8d1002120f812100132042afad3012070bd',
+    'mv': '022d01d0062d04d1b0f800c0bcf1000f01d11bf0ddbd7047',
     'site_title': 'b4f8000118b92046d5f7dbfa00bf',
     'site_key': 'd5f7f8bf',
     'site_aa': 'e2f7d8fb',
-    'site_mv': 'e2f77efb',
+    'site_mv': 'e2f780fb',
 }.items()}
 
 TITLE_AT = CAVE
 KEY_AT = CAVE + 0x10
 AA_AT = CAVE + 0x60
 CUT_AT = 0x030518A0          # dead code after the AA helper, ..0x030518F0 (turbo uses 0x030518F0..)
-MV_AT = CUT_AT + 0x34
+MV_AT = CUT_AT + 0x38
 CUT_END = 0x030518F0
 
 
@@ -231,6 +246,11 @@ def build_patches():
         (0, 0x0306F09C, bytes.fromhex('e8f711fd'), site_aa),
         # seg 0: Vorbis-comment parser, tag value copy -> first ARTIST / ALBUMARTIST wins
         (0, 0x0306F1D4, bytes.fromhex('fef768f9'), site_mv),
+        # seg 39: scanner's extension list "...DSFCUE": .cue sheets are no longer songs
+        (39, 0x0307BACE, b'CUE', b'\x01\x01\x01'),
+        # seg 40: song-level sort: emit bucket 0 (keys starting with NUL) too, like the
+        # album/artist levels do, so no song falls out of the lists
+        (40, 0x0307AE6A, bytes.fromhex('2dd0'), bytes.fromhex('00d0')),
     ]
 
 
@@ -271,7 +291,7 @@ if __name__ == '__main__':
         (t, k, aa, cut, mv), sites = build_patches()
         print(repr({'title': t.hex(), 'key': k.hex(), 'aa': aa.hex(), 'cut': cut.hex(), 'mv': mv.hex(),
                     'site_title': sites[0][3].hex(), 'site_key': sites[1][3].hex(),
-                    'site_aa': sites[-2][3].hex(), 'site_mv': sites[-1][3].hex()}))
+                    'site_aa': sites[5][3].hex(), 'site_mv': sites[6][3].hex()}))
         raise SystemExit
     if len(sys.argv) != 3:
         raise SystemExit(__doc__)

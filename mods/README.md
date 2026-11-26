@@ -9,6 +9,7 @@ Fixes the two problems you get when you copy a Navidrome library (`AlbumArtist/A
 | Only `ALBUMARTIST` is read | `ALBUMARTIST`, `ALBUM ARTIST` and `ALBUM_ARTIST` are all read (foobar2000 / Mp3tag spellings) |
 | `A; B` in ARTIST / ALBUMARTIST shows up as its own artist ("IX Fall$; BLCKK" next to "IX Fall$") | The **Artist list groups by the first name** before `;`, so collaborations sit under the primary artist like in Navidrome. Albums still group by the full credit, and Now Playing shows the full tag |
 | Repeated tags (one `ARTIST=` per artist): the **last** one wins (a Pisca/ZhatjRTQA single was filed under ZhatjRTQA) | The **first** one wins, in the library and on Now Playing |
+| A **`.cue` sheet** next to separate track files turns every cue TRACK into a song that plays the sheet's first file, and hides the real track 1. A sheet without PERFORMER also makes **every album after it open the wrong songs** | `.cue` sheets are **ignored**, like Navidrome does: every audio file is one song. The song-level sort also keeps entries it used to drop, so a bad record can't shift the albums after it |
 
 Multi-disc albums (CD1/CD2 folders, or a DISCNUMBER tag) stay one album, sorted disc then track. Compilations tagged `ALBUMARTIST=Various Artists` stay one album, not one per track artist. Japanese and other CJK tags are unchanged (UTF‑16 internally).
 
@@ -48,7 +49,20 @@ python3 tools/navicheck.py --rebuild tags.json lib/               # silent FLACs
 | seg 39 `0x0307B80C` (record serializer epilogue) | jumps to a helper that writes `album \x01 albumartist` into the unused record field `+0x100` |
 | seg 40 `0x0307B32C/35C/390` (index builder) | Album/Artist/Genre views group by `+0x100` instead of `+0x600` (the UI still displays `+0x600`) |
 | seg 0 `0x0306F09C` (Vorbis comment parser) | the ALBUMARTIST key compare goes to a helper that ignores `' '`/`'_'` |
-| seg 0 `0x030517F0..0x0305199A` | the three helpers, placed over four unreferenced debug-dump routines |
+| seg 0 `0x0306F1D4` (Vorbis comment parser) | the ARTIST / ALBUMARTIST value copy keeps the first value |
+| seg 39 `0x0307BACE` (scanner's extension list `…DSFCUE`) | `CUE` → `\x01\x01\x01`: `.cue` files are no longer songs |
+| seg 40 `0x0307AE6A` (index builder, song-level output) | `beq` → next instruction: the song level emits sort bucket 0 (keys starting with NUL) like the other levels do |
+| seg 0 `0x030517F0..0x0305199A` | the helpers, placed over four unreferenced debug-dump routines |
+
+**Why albums opened the wrong songs (stock firmware too).** The player lists an album's songs by
+walking its child entries (one per song at the song level), not by its song range. The song
+level sorts on a 12-character text (`[disc][track][file name]`, or for cue tracks the first two
+characters of PERFORMER first) and never emits sort bucket 0, the keys that start with a NUL. Cue
+tracks from a sheet without PERFORMER start with a NUL, so they vanished from the child entries
+while still counting as songs, and every later album's child entries started that many songs too
+early. On a real player, 11 such tracks from one `.cue` made *FIGURINES AND PLASTIC DREAMS* open
+with the last tracks of the album before it. `tools/dbcheck.py` finds this in a database copied
+off the player with `tools/echofix.py dumpdb`.
 
 Tested in the emulator against a test library: Japanese titles, a VA compilation, three different albums called "Remixes", a 2‑CD album in CD1/CD2, an untitled file, an over-long album name, and foobar‑style `ALBUM ARTIST` tags. Browsing, Play all and auto-advance work. The emulator barely decodes FLAC audio (on stock firmware too, since the lossless decoder accelerator isn't emulated), so playback itself is untested beyond the first moment. Make sure you have a RockUSB recovery path before flashing code mods.
 

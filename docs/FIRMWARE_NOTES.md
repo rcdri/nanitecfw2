@@ -72,6 +72,18 @@ anything after a NUL**, and only reads both full fields from the database (case-
 the NUL) when the 4 units are equal. So a string shorter than 4 characters with leftover bytes
 after its NUL sorts and groups apart from the same string without them.
 
+The emitter (0x0307ae38) walks the 0x48 buckets in order, but at level 1 (the song level of
+every view, and All songs) it starts at bucket 1, so keys whose first unit is NUL are dropped:
+the parent still counts those songs, its child count doesn't. The browser (mod23) lists a group's
+songs through its child entries, so every later group opens shifted by the number dropped. Stock
+only makes such keys for `.cue` tracks without PERFORMER (their sort text starts with the first
+two characters of PERFORMER) and for All songs entries with an empty title. navilib patches the
+start bucket (0x0307ae6a) and ignores `.cue` sheets.
+
+**`.cue` sheets (stock):** the scanner treats `CUE` as a file type. Each TRACK becomes a record
+(+0x08 = 1) that points at the sheet's first FILE, whatever FILE the track names, and that file
+gets no record of its own.
+
 **Clocks:** the per-module table is at 0x03077500. It has 36 rows of 7 words: an id, then frequencies
 that are summed over the active modules, then clamped by the limits at +0x3e0. Fields 5–6 are the
 HiFi (codec) core. The active-module bitmask is at 0x0300cab0. Enter/exit module is

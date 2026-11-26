@@ -20,7 +20,7 @@ to V2.0.0. It then grew a Navidrome-style library, a faster library refresh and 
 
 | Feature | Mod | Details |
 |---|---|---|
-| **Navidrome-style library**: albums grouped by ALBUM + ALBUMARTIST, titles from tags, `ALBUM ARTIST` / `ALBUM_ARTIST` read, `A; B` artists listed under A, first value wins for repeated tags | navilib | [docs](mods/README.md#navilib-navidrome-style-library-for-the-echo-nano-v200) |
+| **Navidrome-style library**: albums grouped by ALBUM + ALBUMARTIST, titles from tags, `ALBUM ARTIST` / `ALBUM_ARTIST` read, `A; B` artists listed under A, first value wins for repeated tags, `.cue` sheets ignored (a stock bug made them shift every album after them onto the wrong songs) | navilib | [docs](mods/README.md#navilib-navidrome-style-library-for-the-echo-nano-v200) |
 | **Skip unsupported tracks** silently instead of a popup | nanitec | [docs](mods/README.md#nanitec-fixes-ported-from-nanitecfw) |
 | **Fixes a stock crash after a library refresh**: holding next/prev once the screen had timed out jumped into unloaded code and rebooted the player | nanitec | |
 | **Shuffle** and **Random Album** main-menu items | nanitec | |
