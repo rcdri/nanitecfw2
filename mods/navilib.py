@@ -209,21 +209,21 @@ PREBUILT = {k: bytes.fromhex(v) for k, v in {
     'site_aa': 'e2f7d8fb',
     'restore': 'b4f86832a7f86832237f3b777047',
     'cue_set': '002c0cbf0220002085f868022bf08abe',
-    'cue_cur': '192901d129f046be042906d197f8681202290cbf0021012105e0072905d197f8691201f00101a181b08029f051be',
+    'cue_cur': '192901d129f046be042906d197f8681202290cbf0021012106e0072906d197f86912012918bf0021a181b08029f050be',
     'cue_list': '4cf24c00c0f2003090f86802022803d02cf47f0c4cf4803ccdf800c67047',
     'site_restore': 'd6f756fd',
     'site_cur': 'd6f70eba',
-    'site_list': 'd5f795fe',
+    'site_list': 'd5f796fe',
     'site_mv': 'e2f780fb',
-    'pwr_set': '85f869422bf060be',
-    'wfi': '0949097809b919f03dbd08480068c043c00f7047044a1278002a0cbf4ff4c8724ff47a72704700bfb5c20003c0ca0003',
-    'pwr_row': 'c4ebc4010d480078a8b10222601f062807d904220938022803d905220538012809d8064842430598104405900698104406900ef1560e704700bfb5c20003006cdc02',
-    'site_wfi': 'e7f755fa',
+    'pwr_set': '85f869422bf05ebe',
+    'wfi': '09490978012901d019f03abd07480068c043c00f7047044a1278012a0cbf4ff47a724ff4c8727047b5c20003c0ca0003',
+    'pwr_row': 'c4ebc4010d480078012815d10222601f062807d904220938022803d905220538012809d8064842430598104405900698104406900ef1560e7047b5c20003006cdc02',
+    'site_wfi': 'e7f757fa',
     'site_row': 'e6f70dfc',
-    'site_wheel0': 'e6f7b0f9',
-    'site_wheel1': 'd6f796fa',
-    'site_wheel9': 'd4f720f8',
-    'site_wheel33': 'cdf7c8fc',
+    'site_wheel0': 'e6f7b3f9',
+    'site_wheel1': 'd6f799fa',
+    'site_wheel9': 'd4f723f8',
+    'site_wheel33': 'cdf7cbfc',
 }.items()}
 
 TITLE_AT = CAVE
@@ -282,7 +282,8 @@ def build_patches():
 # (0x10b, regions 0x10c-0x10f) is never shown on this player; 0x10b-0x10e become the
 # item and its two choices. The choice lives in the settings struct at +0x268
 # (0x0300C04C; saved with it, 0x2d8 bytes; nothing else uses 0x25b..0x2d3), stored as
-# 2 = Stock, anything else = Off (a fresh block holds 0).
+# 2 = Stock, anything else = Off (a block from before this mod holds 0, one written by
+# a factory reset 0xff).
 # (An "Auto" that skips only split-track sheets isn't possible this way: the directory
 # pre-pass (0x0305dfa4) already validates each sheet and claims its FILE's entry, and
 # skipping a sheet after that leaves the folder index inconsistent; the refresh crashes.)
@@ -296,10 +297,10 @@ PWR_OFF = 0x269
 RESTORE_AT = 0x03051542       # the last 14 free bytes of turbo/opus's cave (..0x03051550)
 CUE_SET_AT = CUE_CAVE
 CUE_CUR_AT = CUE_CAVE + 0x10
-CUE_LIST_AT = CUE_CAVE + 0x3E
-PWR_SET_AT = CUE_CAVE + 0x5C
-WFI_AT = CUE_CAVE + 0x64
-WHEEL_AT = WFI_AT + 0x14
+CUE_LIST_AT = CUE_CAVE + 0x40
+PWR_SET_AT = CUE_CAVE + 0x60
+WFI_AT = CUE_CAVE + 0x68
+WHEEL_AT = WFI_AT + 0x16
 PWR_ROW_AT = PWR_CAVE
 SETTINGS = 0x0300C04C
 
@@ -338,7 +339,9 @@ not_cue:
     cmp     r1, #7              ; id 0x10e: Power saving
     bne     out
     ldrb.w  r1, [r7, #{PWR_OFF:#x}]
-    and     r1, r1, #1          ; shown: Off 0, On 1
+    cmp     r1, #1              ; shown: On 1, anything else Off 0
+    it      ne
+    movne   r1, #0
 show:
     strh    r1, [r4, #0xc]
     strh    r0, [r6, #4]
@@ -363,7 +366,8 @@ keep:
 # ---------------------------------------------------------------- Power saving setting
 # System Settings gets an 11th item, "Power saving": Off / On (nodes 0x10e, 0x10f, 0x111:
 # the rest of the FM subtree and the first Record Settings leaf, both never shown).
-# +0x269 of the settings struct: 1 = On. On does what nanitec --power used to do for good:
+# +0x269 of the settings struct: 1 = On, anything else Off (0, or 0xff after a factory
+# reset). On does what nanitec --power used to do for good:
 #   - decode-core clocks: the codec clock rows (0x03077500, summed by 0x0306ad98 over the
 #     active clients) for MP3/WMA/WAV/AAC (rows 5-11), OGG (14-16) and FLAC/ALAC (19, 20)
 #     count as A 0 MHz and B core = B bus = 96 / 192 / 240 MHz. Takes effect the next time
@@ -384,7 +388,8 @@ ASM_PWR_SET = f"""
 ASM_WFI = f"""
     ldr     r1, pwr_byte
     ldrb    r1, [r1]
-    cbnz    r1, on
+    cmp     r1, #1
+    beq     on
     b.w     0x0306b138          ; Off: stock test of msg 0x18
 on:
     ldr     r0, msgs
@@ -392,13 +397,13 @@ on:
     mvns    r0, r0
     lsrs    r0, r0, #31         ; 1 (sleep) unless msg 0x1f is set
     bx      lr
-wheel:                          ; = WHEEL_AT (WFI_AT + 0x14)
+wheel:                          ; = WHEEL_AT (WFI_AT + 0x16)
     ldr     r2, pwr_byte
     ldrb    r2, [r2]
-    cmp     r2, #0
+    cmp     r2, #1
     ite     eq
-    moveq.w r2, #400
-    movne.w r2, #1000
+    moveq.w r2, #1000
+    movne.w r2, #400
     bx      lr
     .align 2
 pwr_byte:
@@ -412,7 +417,8 @@ ASM_PWR_ROW = f"""
     rsb     r1, r4, r4, lsl #3
     ldr     r0, pwr_byte2
     ldrb    r0, [r0]
-    cbz     r0, out
+    cmp     r0, #1
+    bne     out
     movs    r2, #2              ; x 48 MHz
     subs    r0, r4, #5
     cmp     r0, #6              ; rows 5..11

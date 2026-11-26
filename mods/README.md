@@ -33,6 +33,10 @@ and survive a reboot.
 | Music Settings → **CUE sheets** | **Off** (default), Stock | Off: `.cue` files are ignored, every audio file is one song. Stock: every TRACK of a sheet is a song, as on stock firmware (whole-album rips split into tracks; next to separate files you get the stock duplicates). **Run Update media library after changing it** |
 | System Settings → **Power saving** | **Off** (default), On | On: lower decode-core clocks during playback (144 MHz for MP3/AAC/WMA/WAV, 240 for OGG/Opus, 288 for FLAC/ALAC instead of 300–480), the CPU sleeps between events with the screen on too, and the wheel is polled every 1 ms instead of 0.4 ms. This is what `nanitec --power` used to build into a separate image. The clocks change from the next track, the sleeping at once, the wheel the next time the player re-arms its timer (opening the library or starting playback). The battery gain hasn't been measured on hardware, and it's untested with hi-res (24/192) files: if those stutter, switch it off |
 
+`python3 tools/settingstest.py out/NANOV200_mod.IMG` checks both in the emulator: it walks the
+menus, reboots, measures the clocks, sleeping and wheel period while a song plays, and refreshes a
+small library with each CUE setting.
+
 There is no Auto choice for CUE sheets (use a sheet only when there's a single audio file next to
 it): the scanner's directory pre-pass validates every sheet and claims its audio file before the
 song pass reads it, and skipping a sheet after that crashes the refresh.
@@ -67,14 +71,14 @@ python3 tools/navicheck.py --rebuild tags.json lib/               # silent FLACs
 | seg 39 `0x0307B960` (scanner start, stores the extension list `…DSFCUE` on the stack) | calls a helper that turns `CUE` into `\x01UE` unless CUE sheets = Stock: `.cue` files then match no file type, in the pre-pass and the song pass alike |
 | seg 40 `0x0307AE6A` (index builder, song-level output) | `beq` → next instruction: the song level emits sort bucket 0 (keys starting with NUL) like the other levels do |
 | seg 0 `0x030517F0..0x0305199A` | the helpers, placed over four unreferenced debug-dump routines |
-| settings struct `0x0300C04C` `+0x268` / `+0x269` | CUE sheets (2 = Stock) / Power saving (1 = On); saved with the settings (stock leaves `0x25b..0x2d3` unused) |
+| settings struct `0x0300C04C` `+0x268` / `+0x269` | CUE sheets (2 = Stock) / Power saving (1 = On); anything else is Off (a factory reset writes `0xff`); saved with the settings (stock leaves `0x25b..0x2d3` unused) |
 | seg 1 `0x0307AA92` (boot: settings loader copies known fields one by one) | also copies `+0x268..0x269` |
 | string table, nodes `0x10b..0x10f`, `0x111` (FM Settings and Record Settings, never shown on this player), `0xed`, `0x108`, `0x120`, `0x161` | the two menu items and their choices, in every language (English text except Chinese and Japanese) |
 | seg 32 `0x0307B240` (settings: current-choice switch) and its leaf jump table (`0x0307CF98/9C`, `0x0307CFA4/AC`) | show the current choice and store a new one; the stock exit path saves the settings |
 | seg 0 `0x0306A206` (main loop) | Power saving On: sleep on every pass unless msg `0x1f` (screen-timeout inhibit) is set; Off: stock (only when msg `0x18` is set) |
 | seg 0 `0x0306ADE8` (clock sum over the active codec rows at `0x03077500`) | Power saving On: rows 5–11, 14–16, 19, 20 add nothing to the A clocks and 96/192/240 MHz to B core and B bus |
 | seg 0 `0x0306B364`, seg 1 `0x0307B198`, seg 9 `0x0307D684`, seg 33 `0x03083D34` (wheel timer setup) | period 1000 µs with Power saving On, 400 µs Off |
-| seg 0 `0x03051606..0x0305164C`, `0x03051650..0x030516E4`, `0x03051542` | the settings helpers, over three unreferenced `UMsg.c` printf helpers and their strings (the word at `0x0305164C` is a live literal and stays) |
+| seg 0 `0x03051606..0x0305164C`, `0x03051650..0x030516E8`, `0x03051542` | the settings helpers, over three unreferenced `UMsg.c` printf helpers and their strings (the word at `0x0305164C` is a live literal and stays) |
 
 **Why albums opened the wrong songs (stock firmware too).** The player lists an album's songs by
 walking its child entries (one per song at the song level), not by its song range. The song

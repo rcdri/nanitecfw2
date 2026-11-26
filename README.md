@@ -171,7 +171,7 @@ image unpack/pack workflow in `fwtool.py`.
 
 | Path | What |
 |---|---|
-| `build.sh` | builds the three images from the official file |
+| `build.sh` | builds the two images from the official file |
 | `mods/` | `navilib.py`, `nanitec.py`, `turbo.py` (+ `turbo/cache.c`), `opus.py` (+ `opus/`: decoder glue, build, `bench.py`), [`README.md`](mods/README.md) with what each mod patches and how it was tested |
 | `echonano.py`, `emu/` | the emulator |
 | `fwtool.py`, `rkfw.py`, `rkcrc.py`, `fwmem.py`, `mkdisk.py` | image unpack/pack/patch/CRC, eMMC/SD image helpers |
@@ -180,6 +180,7 @@ image unpack/pack workflow in `fwtool.py`.
 | `tools/echofix.py` | RockUSB Loader-mode rescue: inspect the firmware copies, rename a stuck update file, copy the media database (`dumpdb`) |
 | `tools/dbcheck.py` | checks a media database (from `echofix.py dumpdb` or an emulator image): does every album open the songs it should |
 | `tools/navicheck.py` | predicts the navilib Album list from a music folder's tags |
+| `tools/settingstest.py` | emulator test of the CUE sheets and Power saving settings (menus, saving, clocks, sleeping, wheel, library refresh) |
 | `docs/` | [emulator](docs/EMULATOR.md), [firmware notes](docs/FIRMWARE_NOTES.md) (memory map, caves, routines), screenshots |
 | `examples/` | emulator script example |
 

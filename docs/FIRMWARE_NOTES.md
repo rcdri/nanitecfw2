@@ -159,7 +159,7 @@ loader copying mod21.
 | seg0 0x030512bc–0x03051550 | unreferenced "All LRC Time Tags" dump + its strings | turbo cache (..0x030514c2), opus FS hooks (0x030514c4–0x03051510), Music support helper + "OPUS:16bit/48kHz" (0x03051510–0x03051542), navilib settings restore (0x03051542–0x03051550) |
 | seg0 0x03051606–0x0305164c | three unreferenced `UMsg.c` printf helpers | navilib Power saving clock hook (..0x03051648) |
 | seg0 **0x0305164c–0x03051650** | **literal pool of the live bit-flag helpers (0x03051554..)** | **untouched** |
-| seg0 0x03051650–0x03051700 | those helpers' literal and strings | navilib settings helpers (..0x030516e4) |
+| seg0 0x03051650–0x03051700 | those helpers' literal and strings | navilib settings helpers (..0x030516e8) |
 | seg0 0x030517f0–0x0305199a | four unreferenced framebuffer/glyph dumpers | navilib helpers (..0x030518f0), turbo `.hi` (0x030518f0–0x03051988) |
 | seg0 0x0305ee10–0x0305ef00 | first half of the unreferenced FAT routine | nanitec strip (0x0305ee10) and route (0x0305ee4c–0x0305eee4) |
 | seg0 **0x0305ef00–0x0305ef1c** | **literal pool of the live FAT functions** | **untouched** (checked as stock bytes before patching) |
@@ -183,7 +183,7 @@ enter input), tapped and held, with the screen on and off.
 **Not free, despite looking dead:** 0x0306bae8 is called from seg34, and 0x03066162 is the reset
 handler (vector at 0x03050004).
 
-Free space left: 28 bytes at 0x030516e4, 4 at 0x03051648, 18 at 0x03051988, 28 at 0x0305eee4, 28 at 0x0305f040,
+Free space left: 24 bytes at 0x030516e8, 4 at 0x03051648, 18 at 0x03051988, 28 at 0x0305eee4, 28 at 0x0305f040,
 12 at 0x0305f0b8, and 146 in mod21 (0x0307a784).
 
 ## Internal storage, updates and recovery
