@@ -17,8 +17,13 @@ Tools: `tools/fwre.py` (segments, disassembly, references), `fwtool.py unpack` (
   - 2026‑10‑31 installed over 10‑30, and over 10‑31 again;
   - one image dated 2026‑11‑01 was ignored.
 
-  The boot loader lives in the boot area, not in the image, so its rule is unknown. The build dates
-  every image 2026‑10‑31.
+  The firmware does contain a date check: mod1 0x0307b95c compares the two copies as
+  `(year << 16) | (month << 8) | day`, a correct calendar order, so 11‑01 counts as newer. That
+  check never runs in an emulated boot and has no static caller. Replaying the 11‑01 install on
+  the real player's layout (26 MB system area, stale header at LBA 22528) installs and boots it.
+  The refusal therefore came from outside the image, from the boot area's loader or the ROM, or
+  from that attempt itself. The build dates every image 2026‑10‑31, which is proven to reinstall
+  over itself.
 - Stage 3 is the code: `{base 0x03050000, count 91}`, then one 32-byte entry per segment
   `{code_va, code_pa, code_sz, data_va, data_pa, data_sz, bss_pa, bss_sz}`. 62 entries are used.
   - Segment 0 is resident (code 0x03050000+0x278f0, data 0x03004000).
@@ -128,6 +133,15 @@ The internal eMMC as the firmware (and RockUSB Loader mode) addresses it, in 512
 On a real ECHO NANO (480 MB of flash) the system area is 26 MB: copy 2 at LBA 26624, user
 partition at LBA 462912. The boot area (ID block, loader) sits before LBA 0 and is not reachable
 through these LBAs.
+
+**Copy check** (mod1 0x0307b95c; not seen to run, see Dates):
+- It validates copy 1 by its tag and end copy.
+- It searches for copy 2 from copy 1's slot size, `(size + 0x104000) & ~0xfffff`, in 1 MB
+  steps, at most 20 of them. It stops at the first `RKnanoFW` tag, even one whose end copy is
+  bad. A real player has a stale 2026‑03‑20 header at LBA 22528.
+- It writes `[0x0300d10c]` and, if copy 2 is valid and newer, sets `[0x0300d120]` = 1.
+- With that flag set, every system-area read (0x0306b420) goes to copy 2, and message 0x19a later
+  runs mod8 0x0307b730, which copies the newer copy over the other.
 
 **Update** (boot scan in mod1 at 0x0307b4a0, updater in mod8 at 0x0307b7c8):
 1. At boot the scan looks for `NANOV001.IMG` or `NANOV100`–`NANOV399.IMG` in the root of
