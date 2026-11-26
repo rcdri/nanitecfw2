@@ -78,18 +78,45 @@ the parent still counts those songs, its child count doesn't. The browser (mod23
 songs through its child entries, so every later group opens shifted by the number dropped. Stock
 only makes such keys for `.cue` tracks without PERFORMER (their sort text starts with the first
 two characters of PERFORMER) and for All songs entries with an empty title. navilib patches the
-start bucket (0x0307ae6a) and ignores `.cue` sheets.
+start bucket (0x0307ae6a) and ignores `.cue` sheets unless the CUE sheets setting is Stock.
 
 **`.cue` sheets (stock):** the scanner treats `CUE` as a file type. Each TRACK becomes a record
 (+0x08 = 1) that points at the sheet's first FILE, whatever FILE the track names, and that file
-gets no record of its own.
+gets no record of its own. Before the song pass, a directory pre-pass in seg0 (0x0305dfa4: open
+0x0305be72, parse 0x0307ab0e, FILE lookup 0x0305b7a0) drops sheets whose FILE is missing, so the
+scanner's CUE branch (mod39 0x0307bd92) only ever sees sheets it has already accepted. Skipping a
+sheet there (not creating its songs) crashes the folder-index build: the only safe way to ignore
+them is to make the extension not match at all (navilib edits the stack copy of the list at
+0x0307b960).
+
+**Settings menus are data.** Each string-table record (258 bytes, one per node per language, 431
+nodes × 21 languages) starts with 29 u16: id, parent, index among siblings, first child, prev,
+next, action, child count, children[21]; the text is at +58 (UTF-16, 200 bytes). Root 0xec;
+Music Settings 0xed; System Settings 0x120. The FM Settings (0x10b–0x10f) and Record Settings
+(0x110–0x11f) subtrees are never shown on this player. The settings module (mod32):
+- the "current choice" switch in 0x0307b198 is keyed by the id of the opened item (r5; `r1 = id -
+  0x107` in the 0x101–0x121 branch), stores the cursor at r4+0xc and 0xff at [r6+4];
+- the leaf dispatcher 0x0307cef8 jumps through a table at 0x0307cf28 indexed by `id - 0xf0`
+  (bound 0xba; u32 offsets from the table), with r4 = chosen index and r5 = the settings struct;
+- its common exit 0x0307d374 saves the settings struct if it changed;
+- System Settings restores its last cursor from 0x0300bfb3 if it's below 11.
+
+**Settings struct** 0x0300c04c, saved as 0x2d8 bytes (the SAVE block at sector 0 of the raw data
+area). The boot loader in mod1 copies known fields one by one from the loaded block (r4) to RAM
+(r7), so a new field also needs a copy there (navilib hooks 0x0307aa92). Stock uses nothing in
+0x25b..0x2d3; navilib uses +0x268 (CUE sheets) and +0x269 (Power saving).
 
 **Clocks:** the per-module table is at 0x03077500. It has 36 rows of 7 words: an id, then frequencies
 that are summed over the active modules, then clamped by the limits at +0x3e0. Fields 5–6 are the
 HiFi (codec) core. The active-module bitmask is at 0x0300cab0. Enter/exit module is
 0x0306af7c / 0x0306afc8, and the recompute is 0x0306ad98. While an Ogg/Opus file plays, modules 3, 4
 and 14 are active, which gives PLL 1344 MHz, core A 192 MHz and the HiFi core 448 MHz.
-`nanitec --power` lowers the codec rows.
+The sum loop reads row i at 0x0306ade8; navilib's Power saving hooks it (see mods/README.md).
+
+**Main loop / wheel:** the main loop tests msg 0x18 at 0x0306a204 and sleeps (0x03059a18 /
+0x03059a64) only when it's set; messages are bits at 0x0300cac0 (test 0x0306b138, test+clear
+0x0306b0f4). The scroll wheel is polled by a timer on IRQ 0x23, armed with a 400 µs period at
+0x0306b364 (mod0), 0x0307b198 (mod1, boot), 0x0307d684 (mod9) and 0x03083d34 (mod33, playback).
 
 **File types:** every consumer compares the 3-letter 8.3 extension against
 `MP1MP2MP3WMAWAVAPEFLAAACM4AOGGMP43GPDFFDSF…`, takes the 1-based index, then a `tbb`. The lists
@@ -129,7 +156,10 @@ loader copying mod21.
 
 | Range | Was | Now holds |
 |---|---|---|
-| seg0 0x030512bc–0x03051550 | unreferenced "All LRC Time Tags" dump + its strings | turbo cache (..0x030514c2), opus FS hooks (0x030514c4–0x03051510), Music support helper + "OPUS:16bit/48kHz" (0x03051510–0x03051542) |
+| seg0 0x030512bc–0x03051550 | unreferenced "All LRC Time Tags" dump + its strings | turbo cache (..0x030514c2), opus FS hooks (0x030514c4–0x03051510), Music support helper + "OPUS:16bit/48kHz" (0x03051510–0x03051542), navilib settings restore (0x03051542–0x03051550) |
+| seg0 0x03051606–0x0305164c | three unreferenced `UMsg.c` printf helpers | navilib Power saving clock hook (..0x03051648) |
+| seg0 **0x0305164c–0x03051650** | **literal pool of the live bit-flag helpers (0x03051554..)** | **untouched** |
+| seg0 0x03051650–0x03051700 | those helpers' literal and strings | navilib settings helpers (..0x030516e4) |
 | seg0 0x030517f0–0x0305199a | four unreferenced framebuffer/glyph dumpers | navilib helpers (..0x030518f0), turbo `.hi` (0x030518f0–0x03051988) |
 | seg0 0x0305ee10–0x0305ef00 | first half of the unreferenced FAT routine | nanitec strip (0x0305ee10) and route (0x0305ee4c–0x0305eee4) |
 | seg0 **0x0305ef00–0x0305ef1c** | **literal pool of the live FAT functions** | **untouched** (checked as stock bytes before patching) |
@@ -153,7 +183,7 @@ enter input), tapped and held, with the screen on and off.
 **Not free, despite looking dead:** 0x0306bae8 is called from seg34, and 0x03066162 is the reset
 handler (vector at 0x03050004).
 
-Free space left: 14 bytes at 0x03051542, 18 at 0x03051988, 28 at 0x0305eee4, 28 at 0x0305f040,
+Free space left: 28 bytes at 0x030516e4, 4 at 0x03051648, 18 at 0x03051988, 28 at 0x0305eee4, 28 at 0x0305f040,
 12 at 0x0305f0b8, and 146 in mod21 (0x0307a784).
 
 ## Internal storage, updates and recovery

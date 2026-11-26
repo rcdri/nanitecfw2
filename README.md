@@ -20,12 +20,13 @@ to V2.0.0. It then grew a Navidrome-style library, a faster library refresh and 
 
 | Feature | Mod | Details |
 |---|---|---|
-| **Navidrome-style library**: albums grouped by ALBUM + ALBUMARTIST, titles from tags, `ALBUM ARTIST` / `ALBUM_ARTIST` read, `A; B` artists listed under A, first value wins for repeated tags, `.cue` sheets ignored (a stock bug made them shift every album after them onto the wrong songs) | navilib | [docs](mods/README.md#navilib-navidrome-style-library-for-the-echo-nano-v200) |
+| **Navidrome-style library**: albums grouped by ALBUM + ALBUMARTIST, titles from tags, `ALBUM ARTIST` / `ALBUM_ARTIST` read, `A; B` artists listed under A, first value wins for repeated tags, `.cue` sheets ignored (a stock bug made them shift every album after them onto the wrong songs; Settings switch back to Stock) | navilib | [docs](mods/README.md#navilib-navidrome-style-library-for-the-echo-nano-v200) |
 | **Skip unsupported tracks** silently instead of a popup | nanitec | [docs](mods/README.md#nanitec-fixes-ported-from-nanitecfw) |
 | **Fixes a stock crash after a library refresh**: holding next/prev once the screen had timed out jumped into unloaded code and rebooted the player | nanitec | |
 | **Shuffle** and **Random Album** main-menu items | nanitec | |
 | **Hold-to-scroll acceleration** in library lists | nanitec | |
-| About shows `2.0.0m`; optional **power saving** (`--power`) | nanitec | |
+| **Power saving** switch in System Settings (lower decode clocks, CPU sleeps between events, slower wheel polling); used to be the separate `--power` image | navilib | [docs](mods/README.md#settings) |
+| About shows `2.0.0m` | nanitec | |
 | **Faster library refresh** (sector cache: −81% device reads) and faster boot logo | turbo | [docs](mods/README.md#turbo-faster-library-refresh-and-boot) |
 | **Opus playback**: `.opus` browsed, scanned, tagged and played on FAT32 and exFAT cards (fixed-point libopus CELT decoder in the Ogg codec image); listed under Settings → Music support | opus | [docs](mods/README.md#opus-opus-playback) |
 | **Faster Ogg/Opus tag scan**: the stock comment parser no longer re-reads tag padding up to 512 times per file | opus | |
@@ -57,7 +58,6 @@ no byte the mods overwrite may be referenced by live stock code.
 | Output | Contents | Date |
 |---|---|---|
 | `out/NANOV200_mod.IMG` | navilib + nanitec + turbo + opus | 2026‑10‑31 |
-| `out/NANOV200_mod_power.IMG` | the same with `nanitec --power` | 2026‑10‑31 |
 | `out/NANOV200_recovery.IMG` | unmodified V2.0.0 code | 2026‑10‑31 |
 
 Each mod also runs on its own, on stock or on another mod's output (`python3 mods/<mod>.py IN.IMG
@@ -149,7 +149,8 @@ For the internal storage layout (firmware copies, raw data area, user FAT), see
 - **Opus**: only CELT mode, which is what encoders produce for music at about 64 kbit/s stereo and
   up. Speech/low-bitrate (SILK/hybrid) files are refused, and multichannel isn't supported. Tags
   stored after a large embedded cover aren't read (the same as stock Ogg Vorbis).
-- Power saving (`--power`) runs, but its battery gain hasn't been measured.
+- Power saving (System Settings) runs, but its battery gain hasn't been measured on hardware, and
+  it's untested with hi-res (24/192) files.
 - nanitecfw's library-refresh C code (5× faster refresh, Recent Albums, `CFWLOG.TXT`) isn't ported
   yet. See the [ideas backlog](mods/README.md#ideas-backlog-not-built-yet).
 

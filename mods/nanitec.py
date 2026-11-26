@@ -32,6 +32,8 @@ What it changes:
             let the CPU sleep between events with the screen on, poll the wheel
             every 1 ms instead of every 0.4 ms. nanitecfw marks this as not
             yet measured and not tested with hi-res (24/192) files.
+            On top of navilib this is a switch instead (System Settings >
+            Power saving, see mods/navilib.py); --power refuses such an image.
 
 --recovery writes the unmodified stock code dated 2026-10-31, so you can go
 back to stock after flashing a modded image.
@@ -530,6 +532,9 @@ def apply(raw, power=False, shuffle=True, date='20261031'):
     if shuffle:
         sites += shuffle_sites()
     if power:
+        if raw[seg_offset(raw, 0, 0x0306A206, 4):][:4] != H('00f097ff'):
+            raise SystemExit("--power: this image has navilib's Power saving switch (System Settings); "
+                             "use that instead")
         check_power_rows(raw)
         sites += power_sites()
     apply_sites(raw, sites)

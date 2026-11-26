@@ -4,8 +4,10 @@
 #   ./build.sh NANOV200.IMG [OUT_DIR]          (default OUT_DIR: out)
 #
 #   OUT_DIR/NANOV200_mod.IMG        navilib + nanitec + turbo + opus          dated $DATE  (20261031)
-#   OUT_DIR/NANOV200_mod_power.IMG  the same with nanitec --power             dated $DATE
 #   OUT_DIR/NANOV200_recovery.IMG   unmodified V2.0.0 code                    dated $RDATE (20261031)
+#
+# (Power saving used to be a separate NANOV200_mod_power.IMG; it is now a switch in
+# System Settings, see mods/navilib.py.)
 #
 # Dates: see "Install" in README.md. The updater doesn't compare them; these are the known-good ones.
 set -e
@@ -35,15 +37,11 @@ M="$HERE/mods"
 "$PY" "$M/turbo.py"   "$TMP/nanitec.IMG" "$TMP/turbo.IMG"
 "$PY" "$M/opus.py"    "$TMP/turbo.IMG" "$OUT/NANOV200_mod.IMG" --date "$DATE"
 
-"$PY" "$M/nanitec.py" "$TMP/navilib.IMG" "$TMP/nanitec_p.IMG" --power
-"$PY" "$M/turbo.py"   "$TMP/nanitec_p.IMG" "$TMP/turbo_p.IMG"
-"$PY" "$M/opus.py"    "$TMP/turbo_p.IMG" "$OUT/NANOV200_mod_power.IMG" --date "$DATE"
-
 "$PY" "$M/nanitec.py" --recovery "$IN" "$OUT/NANOV200_recovery.IMG" --date "$RDATE"
 
 # every byte the mods overwrite must be unused by live stock code (needs capstone)
 if "$PY" -c 'import capstone' 2>/dev/null; then
-    for f in "$OUT"/NANOV200_mod.IMG "$OUT"/NANOV200_mod_power.IMG; do
+    for f in "$OUT"/NANOV200_mod.IMG; do
         if ! "$PY" "$HERE/tools/cavecheck.py" "$IN" "$f" > "$TMP/cavecheck.txt"; then
             cat "$TMP/cavecheck.txt" >&2
             echo "cavecheck: $f overwrites bytes that live code still uses" >&2
@@ -56,7 +54,7 @@ else
 fi
 
 echo
-for f in "$OUT"/NANOV200_mod.IMG "$OUT"/NANOV200_mod_power.IMG "$OUT"/NANOV200_recovery.IMG; do
+for f in "$OUT"/NANOV200_mod.IMG "$OUT"/NANOV200_recovery.IMG; do
     echo "$(sha "$f")  $f"
 done
 echo "Flash one of them renamed to NANOV200.IMG (see README.md), then run Update media library once."

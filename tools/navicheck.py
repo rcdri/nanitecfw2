@@ -8,11 +8,12 @@ with the navilib mod, and flag tagging problems.  Needs: pip install mutagen
   python3 tools/navicheck.py --rebuild tags.json OUTDIR # silent FLACs with the same names and tags
 
 Rules (from the firmware, see mods/README.md):
-  album key  = ALBUM + ALBUMARTIST ("ALBUM ARTIST"/"ALBUM_ARTIST" too), else ARTIST
-               (first 126 characters); one Album-list entry per key, shown by ALBUM name
+  album key  = ALBUM + ALBUMARTIST ("ALBUM ARTIST"/"ALBUM_ARTIST" too), else ARTIST, cut
+               at the first ';' ("A; B" -> "A"), first 126 characters; one Album-list
+               entry per key, shown by ALBUM name
   order      = DISCNUMBER, TRACKNUMBER, then the first 4 characters of the file name
   title      = TITLE, else the file name
-  .cue       = ignored (every audio file is one song)
+  .cue       = ignored (every audio file is one song), unless Settings > CUE sheets = Stock
 FLAC/Ogg (Vorbis comments) are what navilib was verified with; other formats are
 reported with the same rules but marked "unverified".
 """
@@ -51,6 +52,12 @@ def num(s):
     return int(m.group(1)) if m else 0
 
 
+def primary(name):
+    """what navilib keeps of "A; B" (its cut looks at the first 127 characters)"""
+    i = name.find(';', 0, 127)
+    return name[:i].rstrip(' ') if i > 0 else name
+
+
 def entry(rel, tags):
     ext = os.path.splitext(rel)[1].lower()
     album = first(tags, 'ALBUM')
@@ -61,7 +68,7 @@ def entry(rel, tags):
         'group_artist': aa or artist, 'title': first(tags, 'TITLE') or os.path.splitext(os.path.basename(rel))[0],
         'disc': num(first(tags, 'DISCNUMBER')), 'track': num(first(tags, 'TRACKNUMBER')),
         'has_title': bool(first(tags, 'TITLE')), 'has_aa': bool(aa),
-        'key': (album + '\x01' + (aa or artist))[:126],
+        'key': (album + '\x01' + primary(aa or artist))[:126],
         'compilation': first(tags, 'COMPILATION'),
     }
 
@@ -99,7 +106,7 @@ def report(songs):
             dt = f"{e['disc']}-{e['track']:02d}" if e['disc'] else f"{e['track']:02d}"
             print(f"    {dt:>5}  {e['title']}{'' if e['has_title'] else '   <- no TITLE, file name shown'}{flag}")
         folders = {os.path.dirname(e['path']).split(os.sep)[0] for e in g}
-        artists = {e['artist'] for e in g}
+        artists = {primary(e['artist']) for e in g}
         if not g[0]['has_aa'] and len(artists) > 1:
             print("    !! track artists differ and there is no ALBUMARTIST: this album splits into", len(artists), "entries")
         if len(folders) > 1 and len({os.path.dirname(e['path']) for e in g}) > 1 and not any(
